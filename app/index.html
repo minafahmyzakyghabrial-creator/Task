@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MemberSpace • Authentication demo</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#162b40;font:17px/1.6 system-ui,sans-serif}header{background:#163650;color:white;padding:20px max(20px,calc((100% - 960px)/2));font-weight:700}main{width:min(480px,calc(100% - 32px));margin:48px auto;background:white;padding:32px;border-radius:16px;box-shadow:0 8px 32px #16365012}h1{line-height:1.2;font-size:30px}label{display:block;font-weight:600;margin-top:16px}input,button{width:100%;font:inherit;border-radius:8px;padding:12px}input{border:1px solid #71869a}button{border:0;background:#126b60;color:white;margin-top:24px;cursor:pointer;font-weight:650;min-height:48px}button:disabled{opacity:.6}a{color:#095b70}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid #d78813;outline-offset:3px}[role=alert]{color:#a11725;min-height:26px;overflow-wrap:anywhere}.muted{color:#53677a;font-size:14px}dd{margin:0 0 16px;overflow-wrap:anywhere}dt{font-weight:700}@media(max-width:500px){main{margin:24px auto;padding:24px}}
+  </style>
+</head>
+<body><header>MemberSpace <span class="muted" style="color:#c4d9e8"> / Demo workspace</span></header><main id="app"></main>
+<script type="module">
+const app = document.querySelector('#app');
+const request = async (path, data) => {
+  const response = await fetch(path, data === undefined ? {} : {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  let body; try { body = await response.json(); } catch { throw new Error('The service is unavailable. Please try again.'); }
+  if (!response.ok) throw new Error(response.status >= 500 ? 'The service is unavailable. Please try again.' : body.error);
+  return body;
+};
+async function render(){
+  if(location.pathname === '/account'){
+    let user;
+    try { user = await request('/api/me'); } catch { location.replace('/signin'); return; }
+    app.innerHTML = '<p class="muted">YOUR WORKSPACE</p><h1>Your account</h1><p role="status">You are signed in.</p><dl><dt>Name</dt><dd id="name"></dd><dt>Email</dt><dd id="email"></dd></dl><button>Sign out</button><p role="alert"></p>';
+    document.querySelector('#name').textContent = user.name;
+    document.querySelector('#email').textContent = user.email;
+    app.querySelector('button').onclick = async () => { try { await request('/api/signout', {}); location.assign('/signin'); } catch { app.querySelector('[role=alert]').textContent = 'Could not sign out. Please try again.'; } };
+    return;
+  }
+  const signup = location.pathname === '/signup';
+  app.innerHTML = `<p class="muted">WELCOME TO MEMBERSPACE</p><h1>${signup?'Create your account':'Sign in'}</h1><form>${signup?'<label for="name">Name</label><input id="name" name="name" autocomplete="name" required maxlength="80">':''}<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="254"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="${signup?'new-password':'current-password'}" required maxlength="128" ${signup?'minlength="8"':''}>${signup?'<p class="muted">Use 8–128 characters, including a letter and a number.</p>':''}<p role="alert" aria-live="polite"></p><button type="submit">${signup?'Create account':'Sign in'}</button></form><p>${signup?'Already registered? <a href="/signin">Sign in</a>':'New here? <a href="/signup">Create account</a>'}</p>`;
+  const form = app.querySelector('form');
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const button = form.querySelector('button'), alert = form.querySelector('[role=alert]');
+    button.disabled = true; alert.textContent = '';
+    try { await request(signup?'/api/signup':'/api/signin', Object.fromEntries(new FormData(form))); location.assign('/account'); }
+    catch(error){alert.textContent = error instanceof TypeError ? 'Unable to connect. Please try again.' : error.message;button.disabled = false;}
+  };
+}
+// Recheck the session when a cached page is restored by Back navigation.
+addEventListener('pageshow', event => {if(event.persisted) render();});
+render();
+</script></body></html>

@@ -1,0 +1,22 @@
+{
+  "name": "auth-journey-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node app/server.mjs",
+    "test": "playwright test",
+    "test:chrome": "playwright test --project=chrome",
+    "test:demo": "playwright test demo --project=chrome",
+    "test:headed": "playwright test --project=chrome --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}

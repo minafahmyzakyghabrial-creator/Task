@@ -1,0 +1,8 @@
+node_modules/
+test-results/
+demo-results/
+playwright-report/
+blob-report/
+.env
+*.log
+recordings/*.webm
