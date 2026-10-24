@@ -1,16 +1,19 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Runs the auth journey against the public practice site https://automationexercise.com.
+// It is a shared site, so keep concurrency low and clean up every account a test creates.
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : 3,
-  timeout: 30_000,
-  expect: { timeout: 5_000 },
+  retries: process.env.CI ? 2 : 1,
+  workers: 2,
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]],
   use: {
-    baseURL: 'http://127.0.0.1:3100',
+    baseURL: 'https://automationexercise.com',
+    headless: !!process.env.CI,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -22,10 +25,4 @@ export default defineConfig({
     { name: 'mobile-chrome', use: { ...devices['Pixel 7'], channel: 'chrome' } },
     { name: 'mobile-safari', use: { ...devices['iPhone 13'] } },
   ],
-  webServer: {
-    command: 'node app/server.mjs',
-    url: 'http://127.0.0.1:3100/api/health',
-    reuseExistingServer: false,
-    timeout: 15_000,
-  },
 });

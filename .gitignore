@@ -6,3 +6,4 @@ blob-report/
 .env
 *.log
 recordings/*.webm
+recordings/*.png

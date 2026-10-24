@@ -1,6 +1,6 @@
-# MemberSpace authentication E2E
+# Authentication E2E — Automation Exercise
 
-A self-contained TypeScript / Playwright assignment demonstrating realistic signup, returning-user sign-in and sign-out in Google Chrome, Firefox, WebKit and two mobile emulations.
+A TypeScript / Playwright framework that imitates real users signing up, signing in and signing out of the public practice site [automationexercise.com](https://automationexercise.com). It runs in Google Chrome, Firefox, WebKit and two mobile emulations.
 
 ## Run
 
@@ -10,60 +10,61 @@ Use Node.js 22+ and npm. From this directory:
 npm ci
 npx playwright install chrome firefox webkit
 npm run typecheck
-npm test
-npm run report
+npm test            # all five browser/device projects
+npm run report      # open the HTML report
 ```
 
-On Linux, use `npx playwright install --with-deps chrome firefox webkit`. Chrome is the branded browser (`channel: 'chrome'`), not merely Chromium. Mobile profiles emulate viewport, touch and device settings; they do not replace real-device testing.
+On Linux, use `npx playwright install --with-deps chrome firefox webkit`. Chrome is the branded browser (`channel: 'chrome'`), not just Chromium. Mobile projects emulate viewport, touch and user agent; they do not replace real-device testing.
 
 ```sh
-npm run test:chrome
-npm run test:headed
-npm run test:ui
-npm run test:demo
+npm run test:chrome   # desktop Chrome only
+npm run test:headed   # desktop Chrome with a visible browser
+npm run test:ui       # Playwright UI mode
+npm run test:demo     # recorded happy-path journey (video + trace kept)
 ```
 
-Playwright starts and stops the demo server automatically. Port 3100 must be free. To explore manually, run `npm start` and open <http://127.0.0.1:3100>. The server binds only to the loopback interface.
+Local runs show the browser; set `CI=1` to run headless.
 
-## Design and evidence
+## Structure
 
-- `app/`: responsive demo application, HTTP API, password hashing and opaque HttpOnly cookie sessions. Accounts live in server memory and survive sign-out; restarting the server clears them. This is a controlled test target, not a production identity service.
-- `tests/fixtures.ts`: unique per-test accounts and an authentication page object. No test order dependency or shared signed-in state.
-- `tests/auth.spec.ts`: UI journeys with observable account/API checks, negative cases, session checks and injected failures.
-- `tests/demo.spec.ts`: narrated Playwright steps with successful video and trace retention.
-- `playwright.config.ts`: five browser/device projects, server lifecycle, bounded workers and failure artifacts.
-- `.github/workflows/e2e.yml`: reproducible CI installation, type checking, all-project execution and artifact upload.
+| Path | Purpose |
+| --- | --- |
+| `playwright.config.ts` | Base URL, five browser/device projects, retries, reporters and failure artifacts |
+| `tests/fixtures.ts` | `AuthPage` page object, a unique UUID user per test, API account creation, ad blocking and account cleanup |
+| `tests/auth.spec.ts` | Positive journey, negative cases, validation, session and fault-injection tests |
+| `scripts/record-walkthrough.mjs` | Generates the captioned code-walkthrough video |
+| `.github/workflows/e2e.yml` | CI pipeline |
+| `docs/` | [Test cases](docs/TEST-CASES.md), [walkthrough](docs/WALKTHROUGH.md), [validation results](docs/VALIDATION.md) |
 
-Assertions use accessible roles/labels and Playwright's automatic waiting; there are no fixed sleeps. Signup is performed through the UI. The primary flow verifies HTTP 201, account details from the protected API, logout, and a fresh login with the same credentials. Thus a success message alone cannot satisfy the registration test. Isolated UUID emails permit concurrent execution; the ephemeral server lifecycle cleans up data after each run.
+## Design
 
-HTML reports are written to `playwright-report/`; JUnit, failed-test screenshots, videos and traces are in `test-results/`. Successful DEMO recordings are retained too. View a trace with `npx playwright show-trace <path-to-trace.zip>`. Artifacts can contain credentials and session data; this project uses synthetic accounts only and excludes generated artifacts from Git.
+- **Real registration proof.** AUTH-01 signs up through the UI, checks "Logged in as &lt;name&gt;", logs out, then signs in again with the same credentials. A success banner alone cannot pass the test.
+- **Isolation.** Every test gets a fresh browser context and a unique `pw-<uuid>@example.test` email, so tests run in parallel with no order dependency.
+- **Fast preconditions.** Tests that only need an existing user create it through the site's public `createAccount` API instead of the UI.
+- **Cleanup.** The `user` fixture deletes the account through `deleteAccount` after every test, so the shared site is not littered with test users.
+- **Stability.** Ad and consent-banner hosts are blocked; they otherwise cover buttons. Locators use the site's `data-qa` attributes and accessible roles, with Playwright's auto-waiting instead of sleeps.
 
-## Coverage and limits
+Browser tests retain videos and traces for review. Reports go to `playwright-report/`; JUnit XML, screenshots, videos and traces of failures go to `test-results/`. View a trace with `npx playwright show-trace <trace.zip>`.
 
-See [the case matrix](docs/TEST-CASES.md), [recording and code walkthrough](docs/WALKTHROUGH.md), and [delivery plan](docs/DELIVERY.md).
+## CI/CD integration
 
-The demo has no email-verification, password-reset, MFA, CAPTCHA, account deletion or lockout feature. Tests for those features are therefore outside scope. This suite is not a security audit, load test or exhaustive accessibility audit. A finite suite cannot enumerate every possible failure. A real application's product rules should drive additional cases and expected outcomes.
+`.github/workflows/e2e.yml` runs on every pull request, on pushes to `main`, nightly, and on manual dispatch:
 
-## CI/CD
+1. Checkout, set up Node 22 with npm cache, `npm ci`.
+2. Install Chrome, Firefox and WebKit with OS dependencies.
+3. `npm run typecheck`, then `npm test` across all five projects with `CI=1` (headless, 2 retries).
+4. Upload the HTML report, JUnit XML, traces, screenshots and videos as artifacts, even when tests fail (14-day retention).
 
-The GitHub Actions workflow runs on pull requests, pushes to `main`, and manual dispatch. It installs browsers and OS dependencies, runs the type checker, and then executes all five projects. Reports upload even when tests fail, with a 14-day retention. Set the `e2e` check as a required branch protection check in GitHub before merging; deployment should depend on its success. One retry in CI preserves failure evidence and helps diagnose transient failures; review flaky passes rather than treating retries as a fix. The local run uses zero retries.
+To use it as a quality gate:
 
-For a staging system, replace the demo web server and page object with the actual application contract, use a dedicated test tenant, inject secrets through GitHub Actions secrets, and implement account cleanup through an authorized test API. Run a small smoke set after deployment and the full matrix before promotion. Do not run destructive registration tests against production without explicit authorization and isolation.
+- Mark the `e2e` job as a **required status check** in branch protection, so pull requests cannot merge while it is red.
+- In a delivery pipeline, run it **after deploying to a staging environment** (point `baseURL` at staging through an environment variable) and block promotion to production on failure. Run a short smoke subset (`--grep AUTH-01`) after the production deployment.
+- Publish `test-results/junit.xml` to the CI test dashboard to track trends, and review any test that passes only on retry as flaky instead of hiding it.
+- Shard large matrices across machines with `--shard=1/4` and merge the blob reports.
+- Keep credentials in CI secrets. The tests here use synthetic, self-deleting accounts only.
 
-## GitHub submission
+The nightly run matters because the target is an external site: it can change without a pull request in this repository.
 
-Create an empty repository, then run from this directory:
+## Scope and limits
 
-```sh
-git init -b main
-git add .
-git commit -m "Add authentication E2E framework and demo app"
-git remote add origin https://github.com/YOUR-USER/YOUR-REPOSITORY.git
-git push -u origin main
-```
-
-Publish source and `package-lock.json`; keep dependency folders, test artifacts and credentials out of Git. Attach the demonstration video and walkthrough recording to the assignment submission or a GitHub release, and include the repository URL and CI run URL. Check `docs/VALIDATION.md` for what was actually executed in the authoring environment.
-
-## Reference documentation
-
-Configuration follows official Playwright documentation for [projects and device coverage](https://playwright.dev/docs/test-projects), [branded Chrome](https://playwright.dev/docs/browsers), and [automatic server startup](https://playwright.dev/docs/test-webserver).
+The practice site has no email verification, password reset, MFA, CAPTCHA or account lockout, so those are out of scope. This is not a security audit, load test or full accessibility audit. Because it is a shared public site, workers are capped at 2 and occasional slowness is absorbed by retries.

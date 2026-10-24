@@ -1,30 +1,36 @@
-# Actual validation — 23 October 2026
+# Validation - 23 October 2026
 
-## Executed locally
+Reviewed the framework against the assignment and removed redundant or out-of-scope tests.
 
 | Check | Observed result |
 | --- | --- |
-| TypeScript `tsc --noEmit` | Passed (exit code 0) |
-| Desktop Google Chrome | All 21 tests reported `passed` / `ok` |
-| Desktop WebKit | All 21 tests reported `passed` |
-| Pixel 7 / Chrome emulation | All 21 tests reported `passed` |
-| iPhone 13 / WebKit emulation | All 21 tests reported `passed` |
-| Firefox | Blocked before first page creation; not verified |
-| Chrome DEMO rerun | Reported passing; browser recording saved |
-| Code walkthrough video | Created; decoded with FFmpeg; 72.36 seconds; a source-code frame visually checked |
-| GitHub Actions | Workflow supplied, not executed remotely |
-| GitHub publication | Pending repository destination and authenticated push |
+| TypeScript: npm run typecheck | Passed, exit code 0 |
+| Headed desktop Google Chrome, one worker, no retries | 16 passed in 5.8 minutes, exit code 0 |
+| Firefox, WebKit and mobile emulation | Configured; not rerun in this review |
+| GitHub publication and remote CI | Not verified in this review |
+| Code walkthrough recording | Regenerated from current source; eight captioned chapters, no audio |
 
-**84 test instances reported passing across four projects. This is not a claim of a clean full-matrix run or a successful runner exit.** On this sandboxed Windows host, the processes remained active during final cleanup after emitting test results and were interrupted manually. The report from the final Chrome demo run is available locally; CI on a clean supported runner remains required for acceptance.
+Command: npm run test:headed -- --workers=1 --retries=0
 
-The local host runs Node 20.16.0; the project and CI target Node 22+. The checks were run with `NODE_OPTIONS=--preserve-symlinks --preserve-symlinks-main` to work around Windows sandbox path resolution failures. The standard npm commands are intended for a normal developer machine or the supplied CI runner.
+This Windows host uses Node 20.16.0; the project and CI target Node 22+. The run used NODE_OPTIONS=--preserve-symlinks --preserve-symlinks-main to handle local sandbox path resolution.
 
-Firefox with pinned Playwright 1.58.2 and its installed Firefox revision 1509 launched but failed at `browserContext.newPage` with `Cannot read properties of undefined (reading '_page')`. A minimal standalone probe reproduced this without loading the demo app, with or without video capture. An independent probe against an already installed Playwright 1.64.1 / Firefox revision 1555 crashed at page creation too. Firefox remains enabled in the CI matrix; it has not been silently skipped or marked passing.
+## Evidence
 
-## Deliverable recordings
+- HTML report: playwright-report/index.html
+- JUnit: test-results/junit.xml
+- Successful signup/logout/login/logout video: test-results/auth-AUTH-01-signup-create-45047-at-can-sign-in-after-logout-chrome/video.webm
+- Each browser test retains its video and trace under test-results/.
 
-- `recordings/functionality-chrome.webm`: successful desktop Chrome registration → sign-out → returning-user sign-in → sign-out.
-- `recordings/functionality-mobile-chrome.webm`: same successful journey in the mobile Chrome project.
-- `recordings/code-walkthrough.webm`: captioned architecture and code explanation with real source excerpts, no audio.
+## Scope decisions
 
-Generated videos are excluded from Git to avoid repository bloat. They are included in the delivery archive and should accompany the submission separately. Browser videos show functionality; the code walkthrough presents source and explanatory captions rather than a spoken editor session.
+Removed the duplicate DEMO test; npm run test:demo now selects AUTH-01, which includes final logout and retains a recording. Removed API-only login and validation probes, speculative password-strength checks, and the case-variant duplicate test that used an unconfirmed expected-failure marker. Browser duplicate-email rejection remains covered. API calls remain for account setup and cleanup.
+
+The retained suite has 16 tests per project (80 configured test instances). No finite suite can identify every possible failure. Email verification, MFA and password reset are outside this practice site's available features. A later local report contains five successful AUTH-01 instances across all configured projects; this verifies the recorded happy path, not the entire 80-instance matrix. GitHub publication, full-matrix execution and a remote CI run remain to be verified before final submission.
+
+## Submission recordings
+
+- `recordings/functionality-chrome.webm`: copied from the successful Chrome AUTH-01 artifact (52.6 seconds).
+- `recordings/functionality-mobile-chrome.webm`: copied from the successful mobile Chrome AUTH-01 artifact.
+- `recordings/code-walkthrough.webm`: regenerated explanation with actual source excerpts and captions, approximately 128 seconds, silent.
+
+Recording frames were visually inspected. See `docs/WALKTHROUGH.md` for reproduction and submission instructions.
